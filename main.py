@@ -1,23 +1,18 @@
-from bs4 import BeautifulSoup as bs
-import requests
 import os.path
 import pandas as pd
-from immo import Immo
 
 import smtplib  # Import smtplib for the actual sending function
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText  # Import the email modules we'll need
-
-from urllib.parse import urljoin
+from Agencies import getNewResults
+from Agencies import saveNewResults
 
 fromEmail = 'cmusso5@hotmail.com'
 toEmail = "cmusso6@gmail.com"#, yuyamashita.y@gmail.com"
 immoCSV = "./ImmoResults.csv"
+boolSendEmail = True
 
-immoDict = {
-    "livit": 'https://www.livit.ch/fr/search/residental?category=APPT&location=Z%C3%BCrich%2C%20Switzerland&geo[value]=47.3768866%2C8.541694&geo[distance][from]=0&price[min]=2700&price[max]=3500&rooms[min]=3.5&surface_living[min]=70',
-    "wincasa": "https://www.wincasa.ch/fr-ch/locataires-potentiel/logements"
-}
+agencies = ["Livit", "HB"]
 
 def sendEmail(txt):
     f = open("config.txt", "r")
@@ -43,36 +38,6 @@ def sendEmail(txt):
 
 
 
-
-
-
-def storeNewLivit(immoIDs):
-    url = "https://www.livit.ch/fr/search/residental?category=APPT&location=Z%C3%BCrich%2C%20Switzerland&geo[value]=47.3768866%2C8.541694&geo[distance][from]=0&price[min]=2700&price[max]=3500&rooms[min]=3.5&surface_living[min]=70"
-    req = requests.get(url)
-    soup = bs(req.text, "html.parser")
-    immoRes = []
-    for res in soup.find_all("div", {"class": "flex flex-col"}):
-        href = res.find("a").get('href')
-        link = urljoin(url, href)
-        id = href.rsplit('/', 1)[1]
-        if immoIDs.str.contains(id).any():
-            print("Skipping ID" + id)
-            continue
-        info = res.find_all("div", {"class": "text-sm font-neue font-light"})
-        rooms = info[0].text.strip()
-        surface = info[1].text.strip()
-        rent = info[2].text.strip()
-        kreis = info[3].text.strip()
-        floor = info[4].text.strip()
-        start_date = info[5].text.strip()
-
-        im = Immo("Livit", id, link, rooms, surface, rent, kreis, floor, start_date)
-        # im.print()
-        im.writeCSV(immoCSV)
-        immoRes.append(im)
-    return immoRes
-
-
 ################################################################
 if __name__ == '__main__':
     if not os.path.isfile(immoCSV):
@@ -82,14 +47,21 @@ if __name__ == '__main__':
             writer.writerow(row)
 
     df = pd.read_csv(immoCSV)
-    immoIDs = df["id"]
+    immoIDs = df["id"].values
 
-    immoRes = storeNewLivit(immoIDs)
+    immoRes = []
+    for ag in agencies:
+        agRes = getNewResults(ag, immoIDs)
+        immoRes.append(agRes)
+    immoFlat = [item for sublist in immoRes for item in sublist]
 
-    if immoRes:
+    saveNewResults(immoFlat, immoCSV)
+
+    # If Results, Send Email
+    if immoFlat and boolSendEmail:
         emailTxt = "Hi there! \nHere are your results: "
-        for im in immoRes:
+        for im in immoFlat:
             emailTxt = emailTxt + "\n" + str(im)
         sendEmail(str(emailTxt))
     else:
-        print("NO new results 😞")
+        print("NO email sent")

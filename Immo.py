@@ -1,4 +1,6 @@
 import csv
+
+
 class Immo:
     def __init__(self, source, id, link, rooms, surface, rent, kreis, floor, start_date):
         self.source = source
@@ -11,7 +13,7 @@ class Immo:
         self.floor = floor
         self.start_date = start_date
 
-    def print(self):
+    def printDetails(self):
         print("Source: " + self.source)
         print("ID: " + self.id)
         print("Link " + self.link)
@@ -22,8 +24,8 @@ class Immo:
         print("floor: " + self.floor)
         print("start_date: " + self.start_date)
 
-    def __repr__(self):
-        return f"- 🏠 {self.source}, {self.link}, {self.rooms}, {self.surface}, {self.rent}, {self.kreis}, {self.floor} , {self.start_date}"
+    def __str__(self):
+        return f"- 🏠 {self.source}, {self.link}, {self.rooms}, {self.surface}, {self.rent}, {self.kreis}, {self.floor}, {self.start_date}"
 
     def writeCSV(self, immoCSV):
         with open(immoCSV, 'a', encoding='UTF8') as f:
