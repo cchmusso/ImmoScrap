@@ -2,3 +2,5 @@ config.txt
 .idea
 .vscode
 test.py
+.DS_Store
+__pycache__
