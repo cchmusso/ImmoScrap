@@ -8,11 +8,11 @@ from Agencies import getNewResults
 from Agencies import saveNewResults
 
 fromEmail = 'cmusso5@hotmail.com'
-toEmail = "cmusso6@gmail.com"#, yuyamashita.y@gmail.com"
+toEmail = "cmusso6@gmail.com, yuyamashita.y@gmail.com"
 immoCSV = "./ImmoResults.csv"
 boolSendEmail = True
 
-agencies = ["Livit", "HB"]
+agencies = ["Livit", "HB", "EngelVoeklers"]
 
 def sendEmail(txt):
     f = open("config.txt", "r")
