@@ -1,14 +1,31 @@
 from bs4 import BeautifulSoup as bs
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.keys import Keys
+
+import time
+import re
+
 import requests
 from Immo import Immo
 from urllib.parse import urljoin
 
+CHROME_DRIVER_PATH = '/usr/local/bin/chromedriver'
+
 agencyURLDict = {
     "Livit": 'https://www.livit.ch/fr/search/residental?category=APPT&location=Z%C3%BCrich%2C%20Switzerland&geo[value]=47.3768866%2C8.541694&geo[distance][from]=0&price[min]=2700&price[max]=3500&rooms[min]=3.5&surface_living[min]=70',
+    "Apleona": "https://realestate-ch.apleona.com/angebot/mietangebote/",
+    "Privera": "https://www.privera.ch/fr/offre-de-biens-immobiliers/annonces",
+    "Wincasa": 'https://www.wincasa.ch/fr-ch/locataires-potentiel/logements',
     "HB": "https://www.hbre.ch/de/suche?offer_type=RENT&offer_category=APPT&location=Z%C3%BCrich&search=",
-"EngelVoeklers": "https://www.engelvoelkers.com/fr/search/?q=&startIndex=0&businessArea=residential&sortOrder=DESC&sortField=sortPrice&pageSize=18&facets=bsnssr%3Aresidential%3Bcntry%3Aswitzerland%3Brgn%3Azurich%3Btyp%3Arent%3Brms%3A%5B3.0+TO+5.5%5D%3B"
+    "EngelVoeklers": "https://www.engelvoelkers.com/fr/search/?q=&startIndex=0&businessArea=residential&sortOrder=DESC&sortField=sortPrice&pageSize=18&facets=bsnssr%3Aresidential%3Bcntry%3Aswitzerland%3Brgn%3Azurich%3Btyp%3Arent%3Brms%3A%5B3.0+TO+5.5%5D%3B"
 }
 
+def saveNewResults(immoRes, immoCSV):
+    for res in immoRes:
+        res.writeCSV(immoCSV)
 
 def getNewResults(agency, immoIDs):
     url = agencyURLDict[agency]
@@ -18,6 +35,15 @@ def getNewResults(agency, immoIDs):
     if agency == "Livit":
         print("Processing Livit...")
         return getLivitResults(soup, url, immoIDs)
+    elif agency == "Apleona":
+        print("Processing Apleona...")
+        return getApleonaResults(soup, url, immoIDs)
+    elif agency == "Privera":
+        print("Processing Privera...")
+        return getPriveraResults(soup, url, immoIDs)
+    elif agency == "Wincasa":
+        print("Processing Wincasa...")
+        return getWincasaResults(soup, url, immoIDs)
     elif agency == "HB":
         print("Processing HB...")
         return getHBResults(soup, url, immoIDs)
@@ -28,10 +54,173 @@ def getNewResults(agency, immoIDs):
         return
 
 
-def saveNewResults(immoRes, immoCSV):
-    for res in immoRes:
-        res.writeCSV(immoCSV)
 
+def getApleonaResults(soup, url, immoIDs):
+
+    options = Options()
+    options.headless = True
+    options.add_argument("--window-size=1920,1200")
+
+    driver = webdriver.Chrome(options=options, executable_path=CHROME_DRIVER_PATH)
+    driver.get(url)
+    time.sleep(1)
+
+    cookie = driver.find_element(By.XPATH, "//div[@class='cc-compliance']/a")
+    if cookie:
+        cookie.click()
+
+    time.sleep(1)
+    driver.switch_to.frame(0)
+
+    location = driver.find_element(By.ID, "zipCityText").send_keys("Zürich")
+    time.sleep(1)
+    location = driver.find_element(By.ID, "zipCityText").send_keys(Keys.ENTER)
+
+    time.sleep(1)
+    rent_min = Select(driver.find_element(By.XPATH, "//div[@id='PriceFromSelect']/select")).select_by_value('26h')
+    time.sleep(1)
+    rent_max = Select(driver.find_element(By.XPATH, "//div[@id='PriceToSelect']/select")).select_by_value('35h')
+    time.sleep(1)
+    rooms = Select(driver.find_element(By.XPATH, "//div[@id='SizePrimaryFromSelect']/select")).select_by_value('3')
+    time.sleep(1)
+    surface = Select(driver.find_element(By.XPATH, "//div[@id='SizeSecondaryFromSelect']/select")).select_by_value('80')
+    time.sleep(1)
+
+    submit = driver.find_element(By.XPATH, "//a[@id='btnShowResultTop']").click()
+    time.sleep(1)
+
+    soup = bs(driver.page_source, 'lxml')
+    #print(driver.page_source)
+    driver.quit()
+
+    immoRes = []
+    for res in soup.find_all("li", {"class": "object-list-item"}):
+        href = res.find("a").get('href')
+        link = "https://1003.hci-is24.ch/" + href
+        id = re.search('p=(.*)&se=', href).group(1)
+        if id in immoIDs:
+            print("Skipping ID" + id)
+            continue
+        info = res.find("div", {"class": "object-details"}).findChildren("div", recursive=False)
+        rooms = info[0].text.splitlines()[2].strip()
+        surface = info[2].text.splitlines()[0].strip()
+        rent = res.find("span", {"class": "price"}).text.strip()
+        kreis = res.find("div", {"class": "object-address"}).text.splitlines()[3].strip()
+        floor = ""
+        start_date = res.find("div", {"class": "object-availability"}).text.strip()
+
+        im = Immo("Apleona", id, link, rooms, surface, rent, kreis, floor, start_date)
+        immoRes.append(im)
+        print(im)
+        #im.printDetails()
+    return immoRes
+def getPriveraResults(soup, url, immoIDs):
+
+    options = Options()
+    options.headless = True
+    options.add_argument("--window-size=1920,1200")
+
+    driver = webdriver.Chrome(options=options, executable_path=CHROME_DRIVER_PATH)
+    driver.get(url)
+
+    time.sleep(1)
+    driver.switch_to.frame(0)
+
+    location =  Select(driver.find_element(By.XPATH, "//div[@id='CitiesSelect']/select")).select_by_visible_text('Zürich')
+    time.sleep(1)
+    rent_min = Select(driver.find_element(By.XPATH, "//div[@id='PriceFromSelect']/select")).select_by_value('26h')
+    time.sleep(1)
+    rent_max = Select(driver.find_element(By.XPATH, "//div[@id='PriceToSelect']/select")).select_by_value('35h')
+    time.sleep(1)
+    rooms = Select(driver.find_element(By.XPATH, "//div[@id='SizePrimaryFromSelect']/select")).select_by_value('3')
+    time.sleep(1)
+    surface = Select(driver.find_element(By.XPATH, "//div[@id='SizeSecondaryFromSelect']/select")).select_by_value('80')
+    time.sleep(1)
+
+    submit = driver.find_element(By.XPATH, "//a[@id='btnShowResultTop']").click()
+    time.sleep(1)
+
+    soup = bs(driver.page_source, 'lxml')
+    #print(driver.page_source)
+    driver.quit()
+
+    immoRes = []
+    for res in soup.find_all("li", {"class": "object-list-item"}):
+        href = res.find("a").get('href')
+        link = "https://743.hci-is24.ch/" + href
+        id = re.search('p=(.*)&se=', href).group(1)
+        if id in immoIDs:
+            print("Skipping ID" + id)
+            continue
+        info = res.find("div", {"class": "object-details"}).findChildren("div", recursive=False)
+        rooms = info[0].text.splitlines()[2].strip()
+        surface = info[2].text.splitlines()[0].strip()
+        rent = res.find("span", {"class": "price"}).text.strip()
+        kreis = res.find("div", {"class": "object-address"}).text.splitlines()[3].strip()
+        floor = ""
+        start_date = res.find("div", {"class": "object-availability"}).text.strip()
+
+        im = Immo("Privera", id, link, rooms, surface, rent, kreis, floor, start_date)
+        immoRes.append(im)
+        print(im)
+        #im.printDetails()
+    return immoRes
+
+def getWincasaResults(soup, url, immoIDs):
+
+    options = Options()
+    options.headless = True
+    options.add_argument("--window-size=1920,1200")
+
+    driver = webdriver.Chrome(options=options, executable_path=CHROME_DRIVER_PATH)
+    driver.get(url)
+
+    cookie = driver.find_element(By.XPATH, "//button[@id='acceptAllCookies']")
+    if cookie:
+        cookie.click()
+
+    time.sleep(1)
+    driver.switch_to.frame(0)
+
+    location = driver.find_element(By.ID, "zipCityText").send_keys("Zürich")
+    time.sleep(1)
+    rent_min = Select(driver.find_element(By.XPATH, "//div[@id='PriceFromSelect']/select")).select_by_value('26h')
+    time.sleep(1)
+    rent_max = Select(driver.find_element(By.XPATH, "//div[@id='PriceToSelect']/select")).select_by_value('35h')
+    time.sleep(1)
+    rooms = Select(driver.find_element(By.XPATH, "//div[@id='SizePrimaryFromSelect']/select")).select_by_value('3')
+    time.sleep(1)
+    surface = Select(driver.find_element(By.XPATH, "//div[@id='SizeSecondaryFromSelect']/select")).select_by_value('80')
+    time.sleep(1)
+
+    submit = driver.find_element(By.XPATH, "//a[@id='btnShowResultTop']").click()
+    time.sleep(1)
+
+    soup = bs(driver.page_source, 'lxml')
+    #print(driver.page_source)
+    driver.quit()
+
+    immoRes = []
+    for res in soup.find_all("li", {"class": "object-list-item"}):
+        href = res.find("a").get('href')
+        link = "https://264.hci-is24.ch/" + href
+        id = re.search('p=(.*)&se=', href).group(1)
+        if id in immoIDs:
+            print("Skipping ID" + id)
+            continue
+        info = res.find("div", {"class": "object-details"}).findChildren("div", recursive=False)
+        rooms = info[0].text.splitlines()[2].strip()
+        surface = info[2].text.splitlines()[0].strip()
+        rent = res.find("span", {"class": "price"}).text.strip()
+        kreis = res.find("div", {"class": "object-address"}).text.splitlines()[3].strip()
+        floor = ""
+        start_date = res.find("div", {"class": "object-availability"}).text.strip()
+
+        im = Immo("Wincasa", id, link, rooms, surface, rent, kreis, floor, start_date)
+        immoRes.append(im)
+        print(im)
+        #im.printDetails()
+    return immoRes
 
 def getLivitResults(soup, url, immoIDs):
     immoRes = []
@@ -54,7 +243,6 @@ def getLivitResults(soup, url, immoIDs):
         immoRes.append(im)
         print(im)
     return immoRes
-
 
 def getHBResults(soup, url, immoIDs):
     immoRes = []

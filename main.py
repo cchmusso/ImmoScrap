@@ -9,14 +9,14 @@ from Agencies import getNewResults
 from Agencies import saveNewResults
 
 fromEmail = 'cmusso5@hotmail.com'
-toEmail = "cmusso6@gmail.com, yuyamashita.y@gmail.com"
-immoCSV = "./ImmoResults.csv"
-boolSendEmail = True
+toEmail = "cmusso6@gmail.com; yuyamashita.y@gmail.com"
+immoCSV = "/Users/cmusso/PycharmProjects/ImmoScrap/ImmoResults.csv"
 
-agencies = ["Livit", "HB", "EngelVoeklers"]
+boolSendEmail = True
+agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers"]
 
 def sendEmail(txt):
-    f = open("config.txt", "r")
+    f = open("/Users/cmusso/PycharmProjects/ImmoScrap/config.txt", "r")
     # initialize the SMTP server
     server = smtplib.SMTP(host="smtp.office365.com", port=587)
     server.starttls() # connect to the SMTP server as TLS mode (secure) and send EHLO
@@ -41,6 +41,8 @@ def sendEmail(txt):
 
 ################################################################
 if __name__ == '__main__':
+    print(os.getcwd())
+
     if not os.path.isfile(immoCSV):
         with open(immoCSV, 'w', encoding='UTF8') as f:
             writer = csv.writer(f)
