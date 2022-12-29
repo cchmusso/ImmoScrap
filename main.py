@@ -15,6 +15,7 @@ immoCSV = "/Users/cmusso/PycharmProjects/ImmoScrap/ImmoResults.csv"
 boolSendEmail = True
 agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers"]
 
+
 def sendEmail(txt):
     f = open("/Users/cmusso/PycharmProjects/ImmoScrap/config.txt", "r")
     # initialize the SMTP server

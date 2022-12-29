@@ -231,7 +231,7 @@ def getLivitResults(soup, url, immoIDs):
         if id in immoIDs:
             print("Skipping ID" + id)
             continue
-        info = res.find_all("div", {"class": "text-sm font-neue font-light"})
+        info = res.find_all("div", {"class": "text-sm font-neue font-light whitespace-nowrap"})
         rooms = info[0].text.strip()
         surface = info[1].text.strip()
         rent = info[2].text.strip()
