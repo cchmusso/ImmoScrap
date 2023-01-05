@@ -10,11 +10,13 @@ from Agencies import getNewResults
 from Agencies import saveNewResults
 
 fromEmail = 'cmusso5@hotmail.com'
-toEmail = "cmusso6@gmail.com; yuyamashita.y@gmail.com"
+toEmail = "cmusso6@gmail.com"
+ccEmail = "cmusso5@hotmail.com"
 immoCSV = "/Users/cmusso/PycharmProjects/ImmoScrap/ImmoResults.csv"
 
 boolSendEmail = True
-agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers", "Ledermann", "Verit"]
+agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers", "Ledermann", "Verit", "SBB"]
+#agencies = ["SBB"] #TEST
 
 
 def sendEmail(txt):
@@ -28,6 +30,7 @@ def sendEmail(txt):
     msg = MIMEMultipart("alternative")
     msg["From"] = "Clairouuu Coding <"+fromEmail+">"
     msg["To"] = toEmail
+    msg["Cc"] = ccEmail
     msg["Subject"] = "New Immo Results"
     text_part = MIMEText(txt, "plain")
     msg.attach(text_part)
