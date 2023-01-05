@@ -1,6 +1,7 @@
 import os.path
 import pandas as pd
 import csv
+import datetime;
 
 import smtplib  # Import smtplib for the actual sending function
 from email.mime.multipart import MIMEMultipart
@@ -13,7 +14,7 @@ toEmail = "cmusso6@gmail.com; yuyamashita.y@gmail.com"
 immoCSV = "/Users/cmusso/PycharmProjects/ImmoScrap/ImmoResults.csv"
 
 boolSendEmail = True
-agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers"]
+agencies = ["Apleona", "Privera", "Wincasa","Livit", "HB", "EngelVoeklers", "Ledermann", "Verit"]
 
 
 def sendEmail(txt):
@@ -42,7 +43,9 @@ def sendEmail(txt):
 
 ################################################################
 if __name__ == '__main__':
+    print("Start run: ", datetime.datetime.now())
     print(os.getcwd())
+
 
     if not os.path.isfile(immoCSV):
         with open(immoCSV, 'w', encoding='UTF8') as f:

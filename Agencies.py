@@ -20,7 +20,9 @@ agencyURLDict = {
     "Privera": "https://www.privera.ch/fr/offre-de-biens-immobiliers/annonces",
     "Wincasa": 'https://www.wincasa.ch/fr-ch/locataires-potentiel/logements',
     "HB": "https://www.hbre.ch/de/suche?offer_type=RENT&offer_category=APPT&location=Z%C3%BCrich&search=",
-    "EngelVoeklers": "https://www.engelvoelkers.com/fr/search/?q=&startIndex=0&businessArea=residential&sortOrder=DESC&sortField=sortPrice&pageSize=18&facets=bsnssr%3Aresidential%3Bcntry%3Aswitzerland%3Brgn%3Azurich%3Btyp%3Arent%3Brms%3A%5B3.0+TO+5.5%5D%3B"
+    "EngelVoeklers": "https://www.engelvoelkers.com/fr/search/?q=&startIndex=0&businessArea=residential&sortOrder=DESC&sortField=sortPrice&pageSize=18&facets=bsnssr%3Aresidential%3Bcntry%3Aswitzerland%3Brgn%3Azurich%3Btyp%3Arent%3Brms%3A%5B3.0+TO+5.5%5D%3B",
+    "Verit": "https://www.verit.ch/mieten-kaufen/mieten",
+    "Ledermann": "https://ledermann.com/de/mieten/verfuegbare-objekte/?category=APPT&search=&area=&price_from=2500&price_to=3500&rooms_from=3.5"
 }
 
 def saveNewResults(immoRes, immoCSV):
@@ -50,10 +52,73 @@ def getNewResults(agency, immoIDs):
     elif agency == "EngelVoeklers":
         print("Processing EngelVoeklers...")
         return getEngelVoeklersResults(soup, url, immoIDs)
+    elif agency == "Ledermann":
+        print("Processing Ledermann...")
+        return getLedermannResults(soup, url, immoIDs)
+    elif agency == "Verit":
+        print("Processing Verit...")
+        return getVeritResults(soup, url, immoIDs)
     else:
         return
 
 
+def getVeritResults(soup, url, immoIDs):
+
+    options = Options()
+    options.headless = True
+    options.add_argument("--window-size=1920,1200")
+
+    driver = webdriver.Chrome(options=options, executable_path=CHROME_DRIVER_PATH)
+    driver.get(url)
+    time.sleep(1)
+
+    cookie = driver.find_element(By.XPATH, "//div[@id='popup-buttons']/button")
+    if cookie:
+        cookie.click()
+
+    time.sleep(1)
+    driver.switch_to.frame(0)
+
+    #Location
+    driver.find_element(By.CLASS_NAME, "mapboxgl-ctrl-geocoder--input").send_keys("Zürich, Kanton Zürich, Schweiz")
+    time.sleep(1)
+    driver.find_element(By.CLASS_NAME, "mapboxgl-ctrl-geocoder--input").send_keys(Keys.ENTER)
+
+    driver.find_element(By.XPATH, "//span[contains(text(),'Zimmer')]/ancestor::button").click()
+    driver.find_element(By.XPATH, "//div[@class='dropdown-menu']/button[@value='3']").click()
+    time.sleep(1)
+    driver.find_element(By.XPATH, "//span[contains(text(),'Preis')]/ancestor::button").click()
+    time.sleep(1)
+    driver.find_element(By.XPATH, "//div[@class='dropdown-menu']/button[@value='2750']").click()
+    time.sleep(1)
+    driver.find_element(By.XPATH, "//div[@class='dropdown-menu']/button[@value='3500']").click()
+    time.sleep(1)
+
+    soup = bs(driver.page_source, 'lxml')
+    #print(driver.page_source)
+    driver.quit()
+
+    immoRes = []
+    for res in soup.find_all("div", {"class": "listing-thumb embedded"}):
+        href = res.find("a").get('href')
+        link = "https://flatfox.ch/" + href
+        id = re.search('.*/(.*)/$', href).group(1)
+        if id in immoIDs:
+            print("Skipping ID" + id)
+            continue
+
+        rooms = res.find("h2").find(text=True, recursive=False)
+        surface = ""
+        rent = res.find("span", {"class": "price"}).text.strip()
+        kreis = res.find("span", {"class": "listing-thumb-title__location"}).text.strip()
+        floor = ""
+        start_date = ""
+
+        im = Immo("Verit", id, link, rooms, surface, rent, kreis, floor, start_date)
+        immoRes.append(im)
+        print(im)
+        #im.printDetails()
+    return immoRes
 
 def getApleonaResults(soup, url, immoIDs):
 
@@ -166,6 +231,40 @@ def getPriveraResults(soup, url, immoIDs):
         #im.printDetails()
     return immoRes
 
+def getLedermannResults(soup, url, immoIDs):
+
+    options = Options()
+    options.headless = True
+    options.add_argument("--window-size=1920,1200")
+
+    driver = webdriver.Chrome(options=options, executable_path=CHROME_DRIVER_PATH)
+    driver.get(url)
+
+    soup = bs(driver.page_source, 'lxml')
+    #print(driver.page_source)
+    driver.quit()
+
+    immoRes = []
+    for res in soup.find_all("div", {"class": "offer-item"}):
+        href = res.find("a").get('href')
+        link = href
+        id = re.search('.*/(.*)/$', href).group(1)
+        if id in immoIDs:
+            print("Skipping ID" + id)
+            continue
+        info = res.find("div", {"class": "row"}).find("div", {"class": "row"}).findChildren("div", recursive=False)
+        rooms = info[2].text.strip().splitlines()[0].strip()
+        surface = info[2].text.strip().splitlines()[2].strip()
+        rent = res.find("span", {"class": "currency"}).text.strip()
+        kreis = info[1].text.splitlines()[1].strip()
+        floor = info[2].text.splitlines()[1].strip()
+        start_date = ""
+
+        im = Immo("Ledermann", id, link, rooms, surface, rent, kreis, floor, start_date)
+        immoRes.append(im)
+        print(im)
+        #im.printDetails()
+    return immoRes
 def getWincasaResults(soup, url, immoIDs):
 
     options = Options()
